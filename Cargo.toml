@@ -1,0 +1,8 @@
+[package]
+name = "merlin-c"
+version = "0.1.0"
+authors = ["Henry de Valence <hdevalence@hdevalence.ca>"]
+edition = "2018"
+description = "A single-file C library providing Merlin transcripts."
+
+[dependencies]

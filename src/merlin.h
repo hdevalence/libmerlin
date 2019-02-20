@@ -1,19 +1,38 @@
-#ifndef KECCAK_FIPS202_H
-#define KECCAK_FIPS202_H
+#ifndef MERLIN_H
+#define MERLIN_H
 #define __STDC_WANT_LIB_EXT1__ 1
 #include <stdint.h>
 #include <stdlib.h>
 
-#define decshake(bits) \
-  int shake##bits(uint8_t*, size_t, const uint8_t*, size_t);
+/* XXX can these be made opaque without malloc? */
 
-#define decsha3(bits) \
-  int sha3_##bits(uint8_t*, size_t, const uint8_t*, size_t);
+typedef struct merlin_strobe128_ {
+  /* XXX endianness */
+  union {
+    uint64_t state[25];
+    uint8_t state_bytes[200];
+  };
+  uint8_t pos;
+  uint8_t pos_begin;
+  uint8_t cur_flags;
+} merlin_strobe128;
 
-decshake(128)
-decshake(256)
-decsha3(224)
-decsha3(256)
-decsha3(384)
-decsha3(512)
+typedef struct merlin_transcript_ {
+  merlin_strobe128 ctx;
+} merlin_transcript;
+
+void merlin_transcript_init(merlin_transcript* ctx);
+
+void merlin_transcript_commit_bytes(merlin_transcript* ctx,
+                                    const uint8_t* label,
+                                    size_t label_len,
+                                    const uint8_t* data,
+                                    size_t data_len);
+
+void merlin_transcript_challenge_bytes(merlin_transcript* ctx,
+                                       const uint8_t* label,
+                                       size_t label_len,
+                                       uint8_t* buffer,
+                                       size_t buffer_len);
+
 #endif

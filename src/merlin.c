@@ -81,6 +81,39 @@ void keccakf(void* state) {
   }
 }
 
+/******** A Strobe-128 context. ********/
+
+#define STROBE_R 166
+
+#define FLAG_I (1)
+#define FLAG_A (1 << 1)
+#define FLAG_C (1 << 2)
+#define FLAG_T (1 << 3)
+#define FLAG_M (1 << 4)
+#define FLAG_K (1 << 5)
+
+void strobe128_begin_op(merlin_strobe128* ctx, uint8_t flags, uint8_t more) {
+  if (more) {
+    // Changing flags while continuing is illegal
+    assert(ctx->cur_flags == flags);
+    return;
+  }
+
+  // T flag is not supported
+  assert(flags & FLAG_T);
+}
+
+void strobe128_init(merlin_strobe128* ctx, const uint8_t* label, size_t label_len) {
+  uint8_t init[18] = {1,  168, 1,  0,   1,  96, 83, 84, 82,
+                      79, 66,  69, 118, 49, 46, 48, 46, 50};
+  memset(ctx->state_bytes, 0, 200);
+  memcpy(ctx->state_bytes, init, 18);
+  keccakf(ctx->state);
+  ctx->pos = 0;
+  ctx->pos_begin = 0;
+  ctx->cur_flags = 0;
+}
+
 /******** The FIPS202-defined functions. ********/
 
 /*** Some helper macros. ***/

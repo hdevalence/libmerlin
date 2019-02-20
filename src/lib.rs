@@ -7,6 +7,7 @@ extern crate merlin;
 #[cfg(test)]
 extern crate rand;
 
+#[cfg(test)]
 extern "C" {
     fn keccakf(state: &mut [u64; 25]);
 }

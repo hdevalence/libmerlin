@@ -1,12 +1,14 @@
-/** libkeccak-tiny
+/** libmerlin
  *
- * A single-file implementation of SHA-3 and SHAKE.
+ * A single-file implementation of Merlin transcripts.
+ *
+ * Derived from keccak-tiny, with attribution note preserved below:
  *
  * Implementor: David Leon Gil
  * License: CC0, attribution kindly requested. Blame taken too,
  * but not liability.
  */
-#include "keccak-tiny.h"
+#include "merlin.h"
 
 #include <stdint.h>
 #include <stdio.h>

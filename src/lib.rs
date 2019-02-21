@@ -1,6 +1,6 @@
 //! A Rust testing harness for the C implementation.
 // This entire crate is only for tests, so it's all unused without cfg(test)
-#![allow(unused_code)]
+#![allow(dead_code)]
 
 #[cfg(test)]
 extern crate keccak;
@@ -10,6 +10,7 @@ extern crate merlin;
 extern crate rand;
 
 // should be the right size?
+#[repr(C)]
 struct CTranscript {
     state: [u8; 203],
 }
@@ -94,19 +95,61 @@ mod tests {
     }
 
     #[test]
+    fn randomized_transcript_conformance() {
+        let num_runs = 100;
+        for _ in 0..num_runs {
+            random_transcript_run();
+        }
+    }
+
+    #[test]
     fn basic_transcript_conformance() {
         let mut rs_transcript = merlin::Transcript::new(b"ConformanceTest");
-        let mut c__transcript = Transcript::new(b"ConformanceTest");
+        let mut c_transcript = Transcript::new(b"ConformanceTest");
 
         rs_transcript.commit_bytes(b"data", b"testdata");
-        c__transcript.commit_bytes(b"data", b"testdata");
+        c_transcript.commit_bytes(b"data", b"testdata");
 
         let mut rs_chal = [0u8; 32];
-        let mut c__chal = [0u8; 32];
+        let mut c_chal = [0u8; 32];
 
         rs_transcript.challenge_bytes(b"chal", &mut rs_chal);
-        c__transcript.challenge_bytes(b"chal", &mut c__chal);
+        c_transcript.challenge_bytes(b"chal", &mut c_chal);
 
-        assert_eq!(c__chal, rs_chal);
+        assert_eq!(c_chal, rs_chal);
+    }
+
+    fn random_transcript_run() {
+        let mut rs_transcript = merlin::Transcript::new(b"ConformanceTest");
+        let mut c_transcript = Transcript::new(b"ConformanceTest");
+
+        let max_test_data_size = 64 * 1024;
+        let mut message_data = vec![0u8; max_test_data_size];
+        let mut rs_chal_buf = vec![0u8; max_test_data_size];
+        let mut c_chal_buf = vec![0u8; max_test_data_size];
+
+        let num_operations = 1_000;
+        let mut rng = rand::thread_rng();
+
+        for _ in 0..num_operations {
+            let op_len = rng.gen_range(0, max_test_data_size);
+            if rng.gen::<bool>() {
+                rng.fill(&mut message_data[0..op_len]);
+                rs_transcript.commit_bytes(b"data", &message_data[0..op_len]);
+                c_transcript.commit_bytes(b"data", &message_data[0..op_len]);
+            } else {
+                rs_transcript.challenge_bytes(b"chal", &mut rs_chal_buf[0..op_len]);
+                c_transcript.challenge_bytes(b"chal", &mut c_chal_buf[0..op_len]);
+                assert_eq!(&rs_chal_buf[0..op_len], &c_chal_buf[0..op_len]);
+            }
+        }
+
+        let mut rs_chal = [0u8; 32];
+        let mut c_chal = [0u8; 32];
+
+        rs_transcript.challenge_bytes(b"finalchal", &mut rs_chal);
+        c_transcript.challenge_bytes(b"finalchal", &mut c_chal);
+
+        assert_eq!(c_chal, rs_chal);
     }
 }

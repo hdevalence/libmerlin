@@ -18,18 +18,20 @@ typedef struct merlin_strobe128_ {
 } merlin_strobe128;
 
 typedef struct merlin_transcript_ {
-  merlin_strobe128 ctx;
+  merlin_strobe128 sctx;
 } merlin_transcript;
 
-void merlin_transcript_init(merlin_transcript* ctx);
+void merlin_transcript_init(merlin_transcript* mctx,
+			    const uint8_t* label,
+			    size_t label_len);
 
-void merlin_transcript_commit_bytes(merlin_transcript* ctx,
+void merlin_transcript_commit_bytes(merlin_transcript* mctx,
                                     const uint8_t* label,
                                     size_t label_len,
                                     const uint8_t* data,
                                     size_t data_len);
 
-void merlin_transcript_challenge_bytes(merlin_transcript* ctx,
+void merlin_transcript_challenge_bytes(merlin_transcript* mctx,
                                        const uint8_t* label,
                                        size_t label_len,
                                        uint8_t* buffer,

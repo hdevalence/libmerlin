@@ -2,6 +2,8 @@
  *
  * A single-file implementation of Merlin transcripts.
  *
+ * Author: Henry de Valence <hdevalence@hdevalence.ca>
+ *
  * Derived from keccak-tiny, with attribution note preserved below:
  *
  * Implementor: David Leon Gil

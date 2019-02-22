@@ -60,25 +60,26 @@ static const uint64_t RC[24] = {1ULL,
   REPEAT5(e; v += s;)
 
 /*** Keccak-f[1600] ***/
-static inline void keccakf(void* state) {
+static /*inline*/ void keccakf(void* state) {
   uint64_t* a = (uint64_t*)state;
   uint64_t b[5] = {0};
   uint64_t t = 0;
   uint8_t x, y;
+  int i;
 
-  for (int i = 0; i < 24; i++) {
-    // Theta
+  for (i = 0; i < 24; i++) {
+    /* Theta */
     FOR5(x, 1, b[x] = 0; FOR5(y, 5, b[x] ^= a[x + y];))
     FOR5(x, 1, FOR5(y, 5, a[y + x] ^= b[(x + 4) % 5] ^ rol(b[(x + 1) % 5], 1);))
-    // Rho and pi
+    /* Rho and pi */
     t = a[1];
     x = 0;
     REPEAT24(b[0] = a[pi[x]]; a[pi[x]] = rol(t, rho[x]); t = b[0]; x++;)
-    // Chi
+    /* Chi */
     FOR5(y, 5,
          FOR5(x, 1, b[x] = a[y + x];)
              FOR5(x, 1, a[y + x] = b[x] ^ ((~b[(x + 1) % 5]) & b[(x + 2) % 5]);))
-    // Iota
+    /* Iota */
     a[0] ^= RC[i];
   }
 }
@@ -94,7 +95,7 @@ static inline void keccakf(void* state) {
 #define FLAG_M (1 << 4)
 #define FLAG_K (1 << 5)
 
-static inline void strobe128_run_f(merlin_strobe128* ctx) {
+static /*inline*/ void strobe128_run_f(merlin_strobe128* ctx) {
   ctx->state_bytes[ctx->pos] ^= ctx->pos_begin;
   ctx->state_bytes[ctx->pos + 1] ^= 0x04;
   ctx->state_bytes[STROBE_R + 1] ^= 0x80;
@@ -106,7 +107,8 @@ static inline void strobe128_run_f(merlin_strobe128* ctx) {
 static void strobe128_absorb(merlin_strobe128* ctx,
                              const uint8_t* data,
                              size_t data_len) {
-  for (size_t i = 0; i < data_len; ++i) {
+  size_t i;
+  for (i = 0; i < data_len; ++i) {
     ctx->state_bytes[ctx->pos] ^= data[i];
     ctx->pos += 1;
     if (ctx->pos == STROBE_R) {
@@ -118,7 +120,8 @@ static void strobe128_absorb(merlin_strobe128* ctx,
 static void strobe128_overwrite(merlin_strobe128* ctx,
                                 const uint8_t* data,
                                 size_t data_len) {
-  for (size_t i = 0; i < data_len; ++i) {
+  size_t i;
+  for (i = 0; i < data_len; ++i) {
     ctx->state_bytes[ctx->pos] = data[i];
     ctx->pos += 1;
     if (ctx->pos == STROBE_R) {
@@ -128,7 +131,8 @@ static void strobe128_overwrite(merlin_strobe128* ctx,
 }
 
 static void strobe128_squeeze(merlin_strobe128* ctx, uint8_t* data, size_t data_len) {
-  for (size_t i = 0; i < data_len; ++i) {
+  size_t i;
+  for (i = 0; i < data_len; ++i) {
     data[i] = ctx->state_bytes[ctx->pos];
     ctx->state_bytes[ctx->pos] = 0;
     ctx->pos += 1;
@@ -138,16 +142,16 @@ static void strobe128_squeeze(merlin_strobe128* ctx, uint8_t* data, size_t data_
   }
 }
 
-static inline void strobe128_begin_op(merlin_strobe128* ctx,
+static /*inline*/ void strobe128_begin_op(merlin_strobe128* ctx,
                                       uint8_t flags,
                                       uint8_t more) {
   if (more) {
-    // Changing flags while continuing is illegal
+    /* Changing flags while continuing is illegal */
     assert(ctx->cur_flags == flags);
     return;
   }
 
-  // T flag is not supported
+  /* T flag is not supported */
   assert(!(flags & FLAG_T));
 
   uint8_t old_begin = ctx->pos_begin;
@@ -157,7 +161,7 @@ static inline void strobe128_begin_op(merlin_strobe128* ctx,
   uint8_t data[2] = {old_begin, flags};
   strobe128_absorb(ctx, data, 2);
 
-  // Force running the permutation if C or K is set.
+  /* Force running the permutation if C or K is set. */
   uint8_t force_f = 0 != (flags & (FLAG_C | FLAG_K));
 
   if (force_f && ctx->pos != 0) {

@@ -3,8 +3,6 @@
 #![allow(dead_code)]
 
 #[cfg(test)]
-extern crate keccak;
-#[cfg(test)]
 extern crate merlin;
 #[cfg(test)]
 extern crate rand;
@@ -25,8 +23,6 @@ struct CRng {
 }
 
 extern "C" {
-    fn keccakf(state: *mut [u64; 25]);
-
     fn merlin_transcript_init(mctx: *mut CTranscript, label: *const u8, label_len: usize);
 
     fn merlin_transcript_commit_bytes(
@@ -188,23 +184,6 @@ mod tests {
     use rand::Rng;
     use rand_chacha::ChaChaRng;
     use rand_core::{RngCore, SeedableRng};
-
-    #[test]
-    fn rust_keccak_vs_c_keccak() {
-        let iterations = 1_000;
-        let initial_state: [u64; 25] = rand::thread_rng().gen();
-
-        let mut rust_state = initial_state;
-        let mut c_state = initial_state;
-
-        for _ in 0..iterations {
-            keccak::f1600(&mut rust_state);
-            unsafe {
-                keccakf(&mut c_state);
-            }
-            assert_eq!(rust_state, c_state);
-        }
-    }
 
     #[test]
     fn randomized_transcript_conformance() {

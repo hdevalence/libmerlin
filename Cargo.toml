@@ -9,7 +9,6 @@ description = "A single-file C library providing Merlin transcripts."
 rand_core = "0.3"
 
 [dev-dependencies]
-keccak = "0.1"
 merlin = "1.0"
 rand = "0.6"
 rand_chacha = "0.1"

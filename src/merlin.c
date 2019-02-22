@@ -282,5 +282,9 @@ void merlin_rng_random_bytes(merlin_rng* mrng, uint8_t* buffer, size_t buffer_le
 }
 
 void merlin_rng_wipe(merlin_rng* mrng) {
+#ifdef HAVE_EXPLICIT_BZERO
   explicit_bzero(&mrng->sctx, sizeof(merlin_strobe128));
+#else
+  memset(&mrng->sctx, 0, sizeof(merlin_strobe128));
+#endif
 }

@@ -208,7 +208,7 @@ void merlin_transcript_commit_bytes(merlin_transcript* mctx,
                                     size_t label_len,
                                     const uint8_t* message,
                                     size_t message_len) {
-  // XXX hack
+  /* XXX hack */
   uint64_t message_len_bytes = message_len;
   strobe128_meta_ad(&mctx->sctx, label, label_len, 0);
   strobe128_meta_ad(&mctx->sctx, (uint8_t*)&message_len_bytes, 4, 1);
@@ -220,12 +220,53 @@ void merlin_transcript_challenge_bytes(merlin_transcript* mctx,
                                        size_t label_len,
                                        uint8_t* buffer,
                                        size_t buffer_len) {
-  // XXX hack
+  /* XXX hack */
   uint64_t buffer_len_bytes = buffer_len;
   strobe128_meta_ad(&mctx->sctx, label, label_len, 0);
   strobe128_meta_ad(&mctx->sctx, (uint8_t*)&buffer_len_bytes, 4, 1);
   strobe128_prf(&mctx->sctx, buffer, buffer_len, 0);
 }
+
+void merlin_rng_init(merlin_rng* mrng, const merlin_transcript* mctx) {
+  memcpy(&mrng->sctx, &mctx->sctx, sizeof(merlin_strobe128));
+  mrng->finalized = 0;
+}
+
+void merlin_rng_commit_witness_bytes(merlin_rng* mrng,
+                                     const uint8_t* label,
+                                     size_t label_len,
+                                     const uint8_t* witness,
+                                     size_t witness_len) {
+  assert(!mrng->finalized);
+  /* XXX hack */
+  uint64_t witness_len_bytes = witness_len;
+  strobe128_meta_ad(&mrng->sctx, label, label_len, 0);
+  strobe128_meta_ad(&mrng->sctx, (uint8_t*)&witness_len_bytes, 4, 1);
+  strobe128_key(&mrng->sctx, witness, witness_len, 0);
+}
+
+void merlin_rng_finalize(merlin_rng* mrng, const uint8_t entropy[32]) {
+  assert(!mrng->finalized);
+  strobe128_meta_ad(&mrng->sctx, (uint8_t*)"rng", 3, 0);
+  strobe128_key(&mrng->sctx, entropy, 32, 0);
+  mrng->finalized = 1;
+}
+
+void merlin_rng_random_bytes(merlin_rng* mrng,
+                             uint8_t* buffer,
+                             size_t buffer_len) {
+  assert(mrng->finalized);
+  /* XXX hack */
+  uint64_t buffer_len_bytes = buffer_len;
+  strobe128_meta_ad(&mrng->sctx, (uint8_t*)&buffer_len_bytes, 4, 1);
+  strobe128_prf(&mrng->sctx, buffer, buffer_len, 0);
+}
+
+void merlin_rng_wipe(merlin_rng* mrng) {
+  explicit_bzero(&mrng->sctx, sizeof(merlin_strobe128));
+}
+
+/* XXX keep these? */
 
 /******** The FIPS202-defined functions. ********/
 

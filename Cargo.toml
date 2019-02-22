@@ -6,11 +6,13 @@ edition = "2018"
 description = "A single-file C library providing Merlin transcripts."
 
 [dependencies]
+rand_core = "0.3"
 
 [dev-dependencies]
-rand = "0.6"
 keccak = "0.1"
 merlin = "1.0"
+rand = "0.6"
+rand_chacha = "0.1"
 
 [build-dependencies]
 cc = "1.0"

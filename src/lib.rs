@@ -8,6 +8,9 @@ extern crate keccak;
 extern crate merlin;
 #[cfg(test)]
 extern crate rand;
+#[cfg(test)]
+extern crate rand_chacha;
+extern crate rand_core;
 
 // should be the right size?
 #[repr(C)]
@@ -15,9 +18,17 @@ struct CTranscript {
     state: [u8; 203],
 }
 
+// should be the right size?
+#[repr(C)]
+struct CRng {
+    state: [u8; 204],
+}
+
 extern "C" {
     fn keccakf(state: *mut [u64; 25]);
+
     fn merlin_transcript_init(mctx: *mut CTranscript, label: *const u8, label_len: usize);
+
     fn merlin_transcript_commit_bytes(
         mctx: *mut CTranscript,
         label: *const u8,
@@ -25,6 +36,7 @@ extern "C" {
         data: *const u8,
         data_len: usize,
     );
+
     fn merlin_transcript_challenge_bytes(
         mctx: *mut CTranscript,
         label: *const u8,
@@ -32,15 +44,31 @@ extern "C" {
         buffer: *mut u8,
         buffer_len: usize,
     );
+
+    fn merlin_rng_init(mrng: *mut CRng, mctx: *const CTranscript);
+
+    fn merlin_rng_commit_witness_bytes(
+        mrng: *mut CRng,
+        label: *const u8,
+        label_len: usize,
+        witness: *const u8,
+        witness_len: usize,
+    );
+
+    fn merlin_rng_finalize(mrng: *mut CRng, entropy: &[u8; 32]);
+
+    fn merlin_rng_random_bytes(mrng: *mut CRng, buffer: *mut u8, buffer_len: usize);
+
+    fn merlin_rng_wipe(mrng: *mut CRng);
 }
 
-struct Transcript {
+pub struct Transcript {
     mctx: CTranscript,
 }
 
 impl Transcript {
     pub fn new(label: &'static [u8]) -> Transcript {
-        let mut mctx = CTranscript { state: [0u8; 203] };
+        let mut mctx = CTranscript { state: [99u8; 203] };
         unsafe {
             merlin_transcript_init(&mut mctx, label.as_ptr(), label.len());
         }
@@ -70,12 +98,96 @@ impl Transcript {
             );
         }
     }
+
+    pub fn build_rng(&self) -> TranscriptRngBuilder {
+        let mut mrng = CRng { state: [99u8; 204] };
+        unsafe {
+            merlin_rng_init(&mut mrng, &self.mctx);
+        }
+        TranscriptRngBuilder { mrng }
+    }
+}
+
+pub struct TranscriptRngBuilder {
+    mrng: CRng,
+}
+
+impl TranscriptRngBuilder {
+    pub fn commit_witness_bytes(
+        mut self,
+        label: &'static [u8],
+        witness: &[u8],
+    ) -> TranscriptRngBuilder {
+        unsafe {
+            merlin_rng_commit_witness_bytes(
+                &mut self.mrng,
+                label.as_ptr(),
+                label.len(),
+                witness.as_ptr(),
+                witness.len(),
+            );
+        }
+
+        self
+    }
+
+    pub fn finalize<R>(mut self, rng: &mut R) -> TranscriptRng
+    where
+        R: rand_core::RngCore + rand_core::CryptoRng,
+    {
+        let random_bytes = {
+            let mut bytes = [0u8; 32];
+            rng.fill_bytes(&mut bytes);
+            bytes
+        };
+
+        unsafe {
+            merlin_rng_finalize(&mut self.mrng, &random_bytes);
+        }
+
+        TranscriptRng { mrng: self.mrng }
+    }
+}
+
+pub struct TranscriptRng {
+    mrng: CRng,
+}
+
+impl rand_core::RngCore for TranscriptRng {
+    fn next_u32(&mut self) -> u32 {
+        rand_core::impls::next_u32_via_fill(self)
+    }
+
+    fn next_u64(&mut self) -> u64 {
+        rand_core::impls::next_u64_via_fill(self)
+    }
+
+    fn fill_bytes(&mut self, dest: &mut [u8]) {
+        unsafe {
+            merlin_rng_random_bytes(&mut self.mrng, dest.as_mut_ptr(), dest.len());
+        }
+    }
+
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand_core::Error> {
+        self.fill_bytes(dest);
+        Ok(())
+    }
+}
+
+impl Drop for TranscriptRng {
+    fn drop(&mut self) {
+        unsafe {
+            merlin_rng_wipe(&mut self.mrng);
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use rand::Rng;
+    use rand_chacha::ChaChaRng;
+    use rand_core::{RngCore, SeedableRng};
 
     #[test]
     fn rust_keccak_vs_c_keccak() {
@@ -115,6 +227,20 @@ mod tests {
 
         rs_transcript.challenge_bytes(b"chal", &mut rs_chal);
         c_transcript.challenge_bytes(b"chal", &mut c_chal);
+
+        assert_eq!(c_chal, rs_chal);
+
+        let mut rs_rng = rs_transcript
+            .build_rng()
+            .commit_witness_bytes(b"witness", b"witnessdata")
+            .finalize(&mut ChaChaRng::from_seed([17; 32]));
+        let mut c_rng = rs_transcript
+            .build_rng()
+            .commit_witness_bytes(b"witness", b"witnessdata")
+            .finalize(&mut ChaChaRng::from_seed([17; 32]));
+
+        rs_rng.fill_bytes(&mut rs_chal);
+        c_rng.fill_bytes(&mut c_chal);
 
         assert_eq!(c_chal, rs_chal);
     }

@@ -27,8 +27,8 @@ typedef struct merlin_rng_ {
 } merlin_rng;
 
 void merlin_transcript_init(merlin_transcript* mctx,
-			    const uint8_t* label,
-			    size_t label_len);
+                            const uint8_t* label,
+                            size_t label_len);
 
 void merlin_transcript_commit_bytes(merlin_transcript* mctx,
                                     const uint8_t* label,
@@ -52,9 +52,7 @@ void merlin_rng_commit_witness_bytes(merlin_rng* mrng,
 
 void merlin_rng_finalize(merlin_rng* mrng, const uint8_t entropy[32]);
 
-void merlin_rng_random_bytes(merlin_rng* mrng,
-                                       uint8_t* buffer,
-                                       size_t buffer_len);
+void merlin_rng_random_bytes(merlin_rng* mrng, uint8_t* buffer, size_t buffer_len);
 
 void merlin_rng_wipe(merlin_rng* mrng);
 
